@@ -2,7 +2,7 @@ package com.bankzecure.webapp.repository;
 
 import java.sql.DriverManager;
 import java.sql.Connection;
-import java.sql.Statement;
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import com.bankzecure.webapp.entity.*;
@@ -15,14 +15,15 @@ public class CustomerRepository {
 
   public Customer findByIdentifierAndPassword(final String identifier, final String password) {
     Connection connection = null;
-    Statement statement = null;
+    PreparedStatement statement = null;
     ResultSet resultSet = null;
     try {
       connection = DriverManager.getConnection(DB_URL, DB_USERNAME, DB_PASSWORD);
-      statement = connection.createStatement();
-      final String query = "SELECT * FROM customer " +
-        "WHERE identifier = '" + identifier + "' AND password = '" + password + "'";
-      resultSet = statement.executeQuery(query);
+      statement = connection.prepareStatement("SELECT * FROM customer WHERE identifier = ? AND password = ?");
+     // final String query = "SELECT * FROM customer WHERE identifier = ? AND password = ?";
+      statement.setString(1, identifier);
+      statement.setString(2, password);
+      resultSet = statement.executeQuery();
 
       Customer customer = null;
 
@@ -48,7 +49,7 @@ public class CustomerRepository {
   public Customer update(String identifier, String newEmail, String newPassword) {
 
     Connection connection = null;
-    Statement statement = null;
+    PreparedStatement statement = null;
     ResultSet resultSet = null;
     Customer customer = null;
     try {
@@ -56,34 +57,43 @@ public class CustomerRepository {
         connection = DriverManager.getConnection(
           DB_URL, DB_USERNAME, DB_PASSWORD
         );
-        statement = connection.createStatement();
+        statement = connection.prepareStatement("UPDATE customer SET email=?, password=? WHERE identifier=?");
 
-        // Build the update query using a QueryBuilder
-        StringBuilder queryBuilder = new StringBuilder();
-        queryBuilder.append("UPDATE customer SET email = '" + newEmail + "'");
+	statement.setString(1, newEmail);
+	statement.setString(2, newPassword);
+	statement.setString(3, identifier);
+
+	statement.executeUpdate();
+
+     /* //Build the update query using a QueryBuilder
+       StringBuilder queryBuilder = new StringBuilder();
+        queryBuilder.append("UPDATE customer SET email=?");
         // Don't set the password in the update query, if it's not provided
         if (newPassword != "") {
-          queryBuilder.append(",password = '" + newPassword + "'");
+          queryBuilder.append(",password=?");
         }
-        queryBuilder.append(" WHERE identifier = '" + identifier + "'");
+        queryBuilder.append(" WHERE identifier=?");
         String query = queryBuilder.toString();
-        statement.executeUpdate(query);
+        statement.executeUpdate();*/
 
         JdbcUtils.closeStatement(statement);
         JdbcUtils.closeConnection(connection);
 
         connection = DriverManager.getConnection(DB_URL, DB_USERNAME, DB_PASSWORD);
-        statement = connection.createStatement();
-        query = "SELECT * FROM customer WHERE identifier = '" + identifier + "'";
-        resultSet = statement.executeQuery(query);
+        statement = connection.prepareStatement("SELECT * FROM customer WHERE identifier=?");
+       // query = "SELECT * FROM customer WHERE identifier=?";
+	statement.setString(1, identifier);
+        resultSet = statement.executeQuery();
 
-        if (resultSet.next()) {
+
+
+          if (resultSet.next()) {
           final int id = resultSet.getInt("id");
           final String identifierInDb = resultSet.getString("identifier");
           final String firstName = resultSet.getString("first_name");
           final String lastName = resultSet.getString("last_name");
           final String email = resultSet.getString("email");
-          customer = new Customer(id, identifierInDb, firstName, lastName, email);
+         customer = new Customer(id, identifierInDb, firstName, lastName, email);
         }
         return customer;
     } catch (SQLException e) {
